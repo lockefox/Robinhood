@@ -9,6 +9,35 @@ from six.moves.urllib.parse import unquote
 from six.moves.urllib.request import getproxies
 from six.moves import input
 
+BASE_ADDRESS = 'https://api.robinhood.com/'
+HARDCODE_ENDPOINTS = {
+    "login": "https://api.robinhood.com/api-token-auth/",
+    "logout": "https://api.robinhood.com/api-token-logout/",
+    "investment_profile": "https://api.robinhood.com/user/investment_profile/",
+    "accounts": "https://api.robinhood.com/accounts/",
+    "ach_iav_auth": "https://api.robinhood.com/ach/iav/auth/",
+    "ach_relationships": "https://api.robinhood.com/ach/relationships/",
+    "ach_transfers": "https://api.robinhood.com/ach/transfers/",
+    "applications": "https://api.robinhood.com/applications/",
+    "dividends": "https://api.robinhood.com/dividends/",
+    "edocuments": "https://api.robinhood.com/documents/",
+    "instruments": "https://api.robinhood.com/instruments/",
+    "margin_upgrades": "https://api.robinhood.com/margin/upgrades/",
+    "markets": "https://api.robinhood.com/markets/",
+    "notifications": "https://api.robinhood.com/notifications/",
+    "orders": "https://api.robinhood.com/orders/",
+    "password_reset": "https://api.robinhood.com/password_reset/request/",
+    "portfolios": "https://api.robinhood.com/portfolios/",
+    "positions": "https://api.robinhood.com/positions/",
+    "quotes": "https://api.robinhood.com/quotes/",
+    "historicals": "https://api.robinhood.com/quotes/historicals/",
+    "document_requests": "https://api.robinhood.com/upload/document_requests/",
+    "user": "https://api.robinhood.com/user/",
+    "watchlists": "https://api.robinhood.com/watchlists/",
+    "news": "https://api.robinhood.com/midlands/news/",
+    "fundamentals": "https://api.robinhood.com/fundamentals/"
+}
+
 class Bounds(Enum):
     """enum for bounds in `historicals` endpoint"""
     REGULAR = 'regular'
@@ -20,33 +49,7 @@ class Transaction(Enum):
 
 class Robinhood:
     """wrapper class for fetching/parsing Robinhood endpoints"""
-    endpoints = {
-        "login": "https://api.robinhood.com/api-token-auth/",
-        "logout": "https://api.robinhood.com/api-token-logout/",
-        "investment_profile": "https://api.robinhood.com/user/investment_profile/",
-        "accounts": "https://api.robinhood.com/accounts/",
-        "ach_iav_auth": "https://api.robinhood.com/ach/iav/auth/",
-        "ach_relationships": "https://api.robinhood.com/ach/relationships/",
-        "ach_transfers": "https://api.robinhood.com/ach/transfers/",
-        "applications": "https://api.robinhood.com/applications/",
-        "dividends": "https://api.robinhood.com/dividends/",
-        "edocuments": "https://api.robinhood.com/documents/",
-        "instruments": "https://api.robinhood.com/instruments/",
-        "margin_upgrades": "https://api.robinhood.com/margin/upgrades/",
-        "markets": "https://api.robinhood.com/markets/",
-        "notifications": "https://api.robinhood.com/notifications/",
-        "orders": "https://api.robinhood.com/orders/",
-        "password_reset": "https://api.robinhood.com/password_reset/request/",
-        "portfolios": "https://api.robinhood.com/portfolios/",
-        "positions": "https://api.robinhood.com/positions/",
-        "quotes": "https://api.robinhood.com/quotes/",
-        "historicals": "https://api.robinhood.com/quotes/historicals/",
-        "document_requests": "https://api.robinhood.com/upload/document_requests/",
-        "user": "https://api.robinhood.com/user/",
-        "watchlists": "https://api.robinhood.com/watchlists/",
-        "news": "https://api.robinhood.com/midlands/news/",
-        "fundamentals": "https://api.robinhood.com/fundamentals/",
-    }
+    endpoints = HARDCODE_ENDPOINTS
 
     session = None
 
@@ -77,6 +80,36 @@ class Robinhood:
             "User-Agent": "Robinhood/823 (iPhone; iOS 7.1.2; Scale/2.00)"
         }
         self.session.headers = self.headers
+        self._load_endpoints()
+    def _load_endpoints(
+            self,
+            base_address=BASE_ADDRESS
+        ):
+        """use REST to update endpoint object
+
+        Args:
+            base_address (str): root address for Robinhood API (test hook)
+
+        Updates self.endpoints list with all public endpoints
+
+        """
+        try:
+            req = requests.get(
+                base_address,
+                headers=self.headers
+            )
+            req.raise_for_status()
+            endpoints = req.json()
+        except Exception as err_msg:
+            self.logger.error(
+                'EXCEPTION: unable to load endpoints from remote',
+                exc_info=True
+            )
+            self.endpoints = HARDCODE_ENDPOINTS
+            return
+
+        self.endpoints.update(endpoints)
+
 
     def login_prompt(self):
         """Prompts user for username and password and calls login()."""
